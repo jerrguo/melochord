@@ -43,18 +43,39 @@ class Music:
         # Identify and attempt to join specified voice channel
         try:
             await self.bot.join_voice_channel(channel)
+
         # If already in a voice channel
         except discord.ClientException:
-            await self.bot.say('Already in a voice channel...')
-        # If not such voice channel exists
-        except discord.InvalidArgument:
-            await self.bot.say('This is not a voice channel...')
+            state = self.bot.voice_client_in(channel.server)
+            await self.bot.say('Ready to play audio in ' + channel.name)
+            await state.move_to(channel)
+
         # Successful join
         else:
             await self.bot.say('Ready to play audio in ' + channel.name)
 
+    # Disconnect bot from all voice channels
+    @commands.command(pass_context=True, no_pm=True)
+    async def disconnect(self, ctx):
+        server = ctx.message.author.server
+        state = self.bot.voice_client_in(server)
+        if state is not None:
+            await state.disconnect()
+        else:
+            await self.bot.say("I'm not in a voice channel...")
 
-
+    # Clear all messages in text channel
+    @commands.command(pass_context=True, no_pm=True)
+    async def clearchat(self, ctx):
+        message = ctx.message
+        try:
+            async for msg in self.bot.logs_from(message.channel):
+                await self.bot.delete_message(msg)
+                await asyncio.sleep(1.2)                                            # 1.2 second delay so the deleting process can be even
+        except discord.errors.Forbidden:
+            await self.bot.say("I don't have permission to do this...")
+        else:
+            print ("CHAT CLEAR CONCLUDED")
 
 
 
