@@ -8,13 +8,49 @@ class Music:
 
     def __init__(self, bot):
         self.bot = bot
-        self.playlist = asyncio.Queue()
-        self.voice_state = "IDLE"
+        self.audio_player = bot.loop.create_task(self.audio_player_task())                          # Task to control playing of songs
+        self.play_next_song = asyncio.Event()                                                       # End of song detection
+        self.player = None                                                                          # Current player
+        self.songlist = []                                                                          # Queue of songs
+        self.paused = False                                                                         # State of player
 
-    # async def create_voice_client(self, channel):
-    #     voice = await self.bot.join_voice_channel(channel)
-    #     state = self.get_voice_state(channel.server)
-    #     state.voice = voice
+    # Play the next song in playlist
+    def toggle_next(self):
+        print ("TOGGLED NEXT")
+        self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
+
+    # Play next song in queue
+    def play_next(self):
+        print ("UPDATING SONG LIST")
+        if (self.player and self.player.is_playing()) or self.paused:
+            print ("STOPPED")
+            self.player.stop()
+
+        self.songlist = self.songlist[1:]
+
+        if self.songlist:
+            self.player = self.songlist[0].player
+            self.player.start()
+            return True
+
+        return False
+
+    # # Stop current player and play next song
+    # def stop_player(self):
+    #     if self.player and self.player.is_playing():
+    #         print ("STOPPED")
+    #         self.player.stop()
+    #         self.play_next()
+
+    # Audio player task
+    async def audio_player_task(self):
+        while True:
+            print ("AUDIO TASK CLEAR")
+            self.play_next_song.clear()
+            self.play_next()
+            print ("PLAYING")
+            print ("START/NO SONGS CHECKPOINT\n")
+            await self.play_next_song.wait()
 
     # Summon bot to current voice channel
     @commands.command(pass_context=True, no_pm=True)
@@ -58,6 +94,12 @@ class Music:
         server = ctx.message.author.server
         state = self.bot.voice_client_in(server)
 
+        self.audio_player = bot.loop.create_task(self.audio_player_task())                          # Task to control playing of songs
+        self.play_next_song = asyncio.Event()                                                       # End of song detection
+        self.player = None                                                                          # Current player
+        self.songlist = []                                                                          # Queue of songs
+        self.paused = False                                                                         # State of player
+
         if state is not None:
             await state.disconnect()
         else:
@@ -71,7 +113,7 @@ class Music:
         try:
             async for msg in self.bot.logs_from(message.channel):
                 await self.bot.delete_message(msg)
-                await asyncio.sleep(1.2)                                            # 1.2 second delay so the deleting process can be even
+                await asyncio.sleep(1.2)                                                    # 1.2 second delay so the deleting process can be even
         except discord.errors.Forbidden:
             await self.bot.say("I don't have permission to do this...")
         else:
@@ -80,6 +122,10 @@ class Music:
     # Play music in voice channel
     @commands.command(pass_context=True, no_pm=True)
     async def play(self, ctx, *, message_string : str):
+        if (self.player and self.player.is_playing()) or self.paused:
+            await self.bot.say("Song already queued...")
+            return False
+
         opts = {
             'default_search': 'auto',
             'quiet': True,
@@ -88,24 +134,94 @@ class Music:
         state = self.bot.voice_client_in(server)
 
         if state is None:
-            await self.bot.say("Join a voice channel first...")
+            await self.bot.say("I'm not in a voice channel...")
             return False
 
         try:
-            player = await state.create_ytdl_player(message_string, ytdl_options=opts)
+            player = await state.create_ytdl_player(message_string, ytdl_options=opts, after=self.toggle_next)
+            player.volume = 0.6
         except Exception as e:
-            print ("ERROR 96\n")
             fmt = 'An error occurred while processing this request: ```py\n{}: {}\n```'
             await self.bot.send_message(ctx.message.channel, fmt.format(type(e).__name__, e))
         else:
-            print ("REACH 100\n")
             song = Song(ctx.message, player)
             await self.bot.say('Enqueued ' + str(song))
-            await self.playlist.put(song)
-            player.start()
+            self.songlist.append(song)                                                      # Add to playlist
+
+            # Check beginning of playlist to determine if this song should be played
+            print ("CHECKPOINT PLAY COMMAND")
+            if self.songlist[0] is song:
+                self.player = player
+                self.player.start()
+
             return song
 
+    # Adds a song to playlist
+    @commands.command(pass_context=True, no_pm=True)
+    async def add(self, ctx, *, message_string : str):
+        if not self.songlist:
+            await self.bot.say('Use !play to start the playlist')
+            
+        opts = {
+            'default_search': 'auto',
+            'quiet': True,
+        }
+        server = ctx.message.author.server
+        state = self.bot.voice_client_in(server)
 
+        if state is None:
+            await self.bot.say("I'm not in a voice channel...")
+            return False
+
+        try:
+            tmpplayer = await state.create_ytdl_player(message_string, ytdl_options=opts, after=self.toggle_next)
+            tmpplayer.volume = 0.6
+        except Exception as e:
+            fmt = 'An error occurred while processing this request: ```py\n{}: {}\n```'
+            await self.bot.send_message(ctx.message.channel, fmt.format(type(e).__name__, e))
+        else:
+            print ("CHECKPOINT ADD COMMAND")
+            song = Song(ctx.message, tmpplayer)
+            await self.bot.say('Enqueued ' + str(song))
+            self.songlist.append(song)                                                      # Add to playlist
+
+            return song
+
+    # Pauses the player
+    @commands.command(pass_context=True, no_pm=True)
+    async def pause(self):
+        if self.player and self.player.is_playing():
+            self.paused = True
+            self.player.pause()
+
+    # Resumes the player
+    @commands.command(pass_context=True, no_pm=True)
+    async def resume(self):
+        if self.player and not self.player.is_playing():
+            self.paused = False
+            self.player.resume()
+
+    @commands.command(pass_context=True, no_pm=True)
+    async def skip(self):
+        if self.player and self.player.is_playing():
+            self.toggle_next()
+        else:
+            await self.bot.say('Nothing to skip...')
+
+    # Shows the list of songs in playlist
+    @commands.command(pass_context=True, no_pm=True)
+    async def playlist(self, ctx):
+        return_string = ""
+
+        if not self.songlist:
+            await self.bot.say("No songs in playlist.")
+            return False
+
+        counter = 1
+        for sng in self.songlist:
+            return_string = return_string + str(counter) + ': ' + str(sng) + '\n\n'
+            counter = counter + 1
+        await self.bot.say(return_string)
 
 
 

@@ -21,4 +21,4 @@ async def on_ready():
     print ("BOT USERNAME: " + bot.user.name)
     print ("BOT ID: " + bot.user.id + '\n')
 
-bot.run('NDIxNTEzNTk5NDg4NDkxNTIw.DYOUpQ.HDnbKD6hDd0wXv0OOWonPSQbZKg')
+bot.run('NDIyNTA0OTM4MjU0NDk5ODUx.DYcwHw.D5uR46VfEsQdyxvGlxde0CT5CVA')
