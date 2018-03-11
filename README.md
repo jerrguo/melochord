@@ -1,4 +1,4 @@
-# Discord-Bot
+# Discord-Music-Bot
 Discord music bot capable of creating playlists and playing music over voice channels.
 
 ### Features
