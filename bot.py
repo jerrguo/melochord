@@ -19,6 +19,6 @@ bot.add_cog(Music(bot))
 async def on_ready():
     print ("BOT STARTED UP")
     print ("BOT USERNAME: " + bot.user.name)
-    print ("BOT ID: " + bot.user.id)
+    print ("BOT ID: " + bot.user.id + '\n')
 
 bot.run('NDIxNTEzNTk5NDg4NDkxNTIw.DYOUpQ.HDnbKD6hDd0wXv0OOWonPSQbZKg')
