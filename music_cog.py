@@ -200,12 +200,26 @@ class Music:
             self.paused = False
             self.player.resume()
 
+    # Skip currently playing song
     @commands.command(pass_context=True, no_pm=True)
     async def skip(self):
-        if self.player and self.player.is_playing():
+        if (self.player and self.player.is_playing()) or self.paused:
             self.player.stop()
         else:
             await self.bot.say('Nothing to skip...')
+
+    # Adjust volume of player
+    @commands.command(pass_context=True, no_pm=True)
+    async def volume(self, ctx, *, number : float):
+        try:
+            if int(number) > 100 or int(number) < 0:
+                await self.bot.say('Volume must be between 0-100...')
+        except:
+            await self.bot.say('Volume must be between 0-100...')
+        else:
+            if self.player and self.player.is_playing():
+                self.player.volume = int(number)/100
+                await self.bot.say('Set the volume to {:.0%}'.format(self.player.volume))
 
     # Shows the list of songs in playlist
     @commands.command(pass_context=True, no_pm=True)
@@ -235,4 +249,4 @@ class Music:
 
 
 
-# Holder
+###
