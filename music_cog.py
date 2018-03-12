@@ -19,37 +19,24 @@ class Music:
         print ("TOGGLED NEXT")
         self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
 
-    # Play next song in queue
-    def play_next(self):
-        print ("UPDATING SONG LIST")
-        if (self.player and self.player.is_playing()) or self.paused:
-            print ("STOPPED")
-            self.player.stop()
-
-        self.songlist = self.songlist[1:]
-
-        if self.songlist:
-            self.player = self.songlist[0].player
-            self.player.start()
-            return True
-
-        return False
-
-    # # Stop current player and play next song
-    # def stop_player(self):
-    #     if self.player and self.player.is_playing():
-    #         print ("STOPPED")
-    #         self.player.stop()
-    #         self.play_next()
-
     # Audio player task
     async def audio_player_task(self):
         while True:
-            print ("AUDIO TASK CLEAR")
+            print ("AUDIO TASK BEGINNING")
+            if (self.player and self.player.is_playing()) or self.paused:
+                print ("STOPPED")
+                self.player.stop()
+
+            self.songlist = self.songlist[1:]
+
+            if self.songlist:
+                self.player = self.songlist[0].player
+                print ("PLAYED " + str(self.songlist[0]))
+                self.player.start()
+
+            print ("START/NO SONGS CHECKPOINT")
             self.play_next_song.clear()
-            self.play_next()
-            print ("PLAYING")
-            print ("START/NO SONGS CHECKPOINT\n")
+            print ("END DETECTED\n")
             await self.play_next_song.wait()
 
     # Summon bot to current voice channel
@@ -94,7 +81,7 @@ class Music:
         server = ctx.message.author.server
         state = self.bot.voice_client_in(server)
 
-        self.audio_player = bot.loop.create_task(self.audio_player_task())                          # Task to control playing of songs
+        self.audio_player = self.bot.loop.create_task(self.audio_player_task())                     # Task to control playing of songs
         self.play_next_song = asyncio.Event()                                                       # End of song detection
         self.player = None                                                                          # Current player
         self.songlist = []                                                                          # Queue of songs
@@ -113,7 +100,7 @@ class Music:
         try:
             async for msg in self.bot.logs_from(message.channel):
                 await self.bot.delete_message(msg)
-                await asyncio.sleep(1.2)                                                    # 1.2 second delay so the deleting process can be even
+                await asyncio.sleep(1.2)                                # 1.2 second delay so the deleting process can be even
         except discord.errors.Forbidden:
             await self.bot.say("I don't have permission to do this...")
         else:
@@ -123,7 +110,7 @@ class Music:
     @commands.command(pass_context=True, no_pm=True)
     async def play(self, ctx, *, message_string : str):
         if (self.player and self.player.is_playing()) or self.paused:
-            await self.bot.say("Song already queued...")
+            await self.bot.say("Use !add to add to playlist.")
             return False
 
         opts = {
@@ -146,13 +133,12 @@ class Music:
         else:
             song = Song(ctx.message, player)
             await self.bot.say('Enqueued ' + str(song))
-            self.songlist.append(song)                                                      # Add to playlist
+            self.songlist.insert(0, song)                       # Add to playlist
 
             # Check beginning of playlist to determine if this song should be played
             print ("CHECKPOINT PLAY COMMAND")
-            if self.songlist[0] is song:
-                self.player = player
-                self.player.start()
+            self.player = player
+            self.player.start()
 
             return song
 
@@ -160,8 +146,8 @@ class Music:
     @commands.command(pass_context=True, no_pm=True)
     async def add(self, ctx, *, message_string : str):
         if not self.songlist:
-            await self.bot.say('Use !play to start the playlist')
-            
+            await self.bot.say('Use !play to start the playlist.')
+
         opts = {
             'default_search': 'auto',
             'quiet': True,
@@ -183,9 +169,22 @@ class Music:
             print ("CHECKPOINT ADD COMMAND")
             song = Song(ctx.message, tmpplayer)
             await self.bot.say('Enqueued ' + str(song))
-            self.songlist.append(song)                                                      # Add to playlist
+            self.songlist.append(song)                          # Add to playlist
 
             return song
+
+    # Removes a song from playlist
+    @commands.command(pass_context=True, no_pm=True)
+    async def remove(self, ctx, *, number : int):
+        try:
+            if number is 1:
+                await self.bot.say('Use !skip to skip the song.')
+            else:
+                await self.bot.say('Removed ' + str(self.songlist[number - 1]))
+                self.songlist.pop(number - 1)
+
+        except:
+            await self.bot.say('Use !remove [song number] with a valid song number.')
 
     # Pauses the player
     @commands.command(pass_context=True, no_pm=True)
@@ -205,6 +204,7 @@ class Music:
     async def skip(self):
         if self.player and self.player.is_playing():
             self.toggle_next()
+            return
         else:
             await self.bot.say('Nothing to skip...')
 
