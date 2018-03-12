@@ -1,5 +1,5 @@
 # Discord-Music-Bot
-Discord music bot capable of creating playlists and playing music over voice channels.
+Discord music bot capable of creating playlists and playing music over voice channels using videos from YouTube.
 
 ### Features
 * Summons and allows bot to join and interact with voice and text channels
