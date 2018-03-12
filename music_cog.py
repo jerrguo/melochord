@@ -203,8 +203,7 @@ class Music:
     @commands.command(pass_context=True, no_pm=True)
     async def skip(self):
         if self.player and self.player.is_playing():
-            self.toggle_next()
-            return
+            self.player.stop()
         else:
             await self.bot.say('Nothing to skip...')
 
