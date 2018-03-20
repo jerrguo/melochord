@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from key import *
 import asyncio
 
 from music_cog import Music
@@ -21,4 +22,4 @@ async def on_ready():
     print ("BOT USERNAME: " + bot.user.name)
     print ("BOT ID: " + bot.user.id + '\n')
 
-bot.run('NDIyNTA0OTM4MjU0NDk5ODUx.DYcwHw.D5uR46VfEsQdyxvGlxde0CT5CVA')
+bot.run(TOKEN)
