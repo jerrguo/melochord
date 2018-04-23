@@ -1,4 +1,4 @@
-# Discord-Music-Bot
+# MeloChord
 Discord music bot capable of creating playlists and playing music over voice channels using videos from YouTube.
 
 ### Features
